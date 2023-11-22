@@ -11,27 +11,29 @@ import asyncio
 import re
 import time
 import accelerate
+from collections import defaultdict
+import requests
 
 
 def timing_decorator(func):
-    def wrapper(*args, **kwargs):
+    def wrapper():
         start_time = time.time()
-        result = func(*args, **kwargs)
+        result = func()
         end_time = time.time()
         elapsed_time = end_time - start_time
-        print(f"{func.__name__} took {elapsed_time:.6f} seconds to execute.")
+        print(f"\n\n{func.__name__} took {elapsed_time:.6f} seconds to execute.")
         return result
 
     return wrapper
 
 
 def async_timing_decorator(func):
-    async def wrapper(*args, **kwargs):
+    async def wrapper():
         start_time = time.time()
-        result = await func(*args, **kwargs)
+        result = await func()
         end_time = time.time()
         elapsed_time = end_time - start_time
-        print(f"{func.__name__} took {elapsed_time:.6f} seconds to execute.")
+        print(f"\n\n{func.__name__} took {elapsed_time:.6f} seconds to execute.")
         return result
 
     return wrapper
@@ -46,98 +48,103 @@ def embed_text(text: list[str]) -> list[list]:
     return embeddings_parsed
 
 
-def validate_response(response: requests.Response):
-    if isinstance(response, httpx.Response):
+def validate_response(response: requests.Response or httpx.Response) -> bool:
+    if isinstance(response, httpx.Response) or isinstance(response, requests.Response):
         if response.status_code == 200:
-            print("HTTP response is valid.")
+            print("HTTP response is valid.\n")
             return True
         else:
-            print(f"Invalid HTTP response. Status Code: {response.status_code}\n {response.text}")
+            print(f"Invalid HTTP response. Status Code: {response.status_code}\n {response.text}\n")
             return False
     else:
         print("Invalid response. Expected an instance of requests.Response.")
         return False
 
-
 class Models:
     def __init__(self):
-        self.models_urls = {"get": {"list": "http://localhost:11434/api/tags"},
-                            "post": {"generate": "http://localhost:11434/api/generate"}}
         self.__initiate_connection()
+        self.local_host = "http://localhost:11434/api/"
+        self.models_urls = {"get": {"list": "tags"},
+                            "post": {"generate": "generate"}}
 
     @staticmethod
     def __initiate_connection() -> None:
         bash_command = "ollama serve"
         try:
             subprocess.run(bash_command, shell=True, check=True)
-            print("Ollama is serving.")
+            print("Ollama is serving.\n")
         except subprocess.CalledProcessError as e:
-            print(f"Error during ollama initialisation: {e}")
+            print(f"Error during ollama initialisation: {e}\n")
 
     async def get_list_models(self) -> None:
         async with httpx.AsyncClient() as client:
-            response = await client.get(url=self.models_urls["get"]["list"])
+            response = await client.get(url=self.local_host + self.models_urls["get"]["list"])
             if validate_response(response=response):
                 all_models = [model["name"] for model in json.loads(response.text)["models"]]
-                print(all_models)
+                print(all_models, end="\n")
 
-    async def generate_response(self, model: str, prompt: str) -> str:
+    @staticmethod
+    def prompt_template(question: str, db_information: str, template_key: str) -> str:
+        def def_value():
+            return f"No template with key: {template_key}"
+
+        template = defaultdict(def_value)
+        template["chat"] = f"""
+                user prompt:"{question}" 
+                habr database information: "{db_information}"
+                Form your answer only in Russian
+                """
+        template["classification"] = f"""{question}"""
+        return template[template_key]
+
+    async def a_generate_response(self, model: str, prompt: str) -> tuple:
         async with httpx.AsyncClient() as client:
             json_data = json.dumps({"model": model, "prompt": prompt, "stream": False})
-            response = await client.post(url=self.models_urls["post"]["generate"],
-                                         data=json_data, timeout=30)
+            response = await client.post(url=self.local_host + self.models_urls["post"]["generate"],
+                                         data=json_data, timeout=120)
+            print(f"Generated HTTP response")
             if validate_response(response=response):
-                model_answer = json.loads(response.text)["response"]
-                return model_answer
+                model_answer = json.loads(response.text)["response"].strip()
+                model_generation_speed = round(float(json.loads(response.text)["eval_count"] \
+                                                     / (json.loads(response.text)["eval_duration"] / 1e+9)), 2)
+                return model_answer, model_generation_speed
 
-
-
-
-
+    def generate_response(self, model: str, prompt: str) -> tuple:
+            json_data = json.dumps({"model": model, "prompt": prompt, "stream": False})
+            response = requests.post(url=self.local_host + self.models_urls["post"]["generate"],
+                                         data=json_data, timeout=120)
+            print(f"Generated HTTP response")
+            if validate_response(response=response):
+                model_answer = json.loads(response.text)["response"].strip()
+                model_generation_speed = round(float(json.loads(response.text)["eval_count"] \
+                                                     / (json.loads(response.text)["eval_duration"] / 1e+9)), 2)
+                return model_answer, model_generation_speed
 
 
 if __name__ == "__main__":
-    # @async_timing_decorator
-    # async def a_main():
-    #     models = Models()
-    #
-    #     # await models.get_list_models()
-    #
-    #     model_answer_1 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
-    #     print(model_answer_1)
-    #     model_answer_2 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
-    #     print(model_answer_2)
-    #     model_answer_3 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
-    #     print(model_answer_3)
-    #     model_answer_4 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
-    #     print(model_answer_4)
-    #
-    # asyncio.run(a_main())
+    @async_timing_decorator
+    async def a_main():
+        models = Models()
+
+        await models.get_list_models()
+
+        question = 'Напиши код используя визуальный пакет tkinter в Питоне'
+        db_information = 'Солнце светит ярко'
+        prompt = f"""
+        user prompt:"{question}" 
+        habr database information: "{db_information}"
+        Form your answer only in Russian
+        """
+        prompt_2 = f"""
+                user prompt:"{question}" 
+                habr database information: "{db_information}"
+                Form your answer only in Russian
+                """
+
+        model_answer, model_speed = await models.generate_response(model="llama_code",
+                                                                   prompt=prompt)
+        print(model_answer)
+        print(model_speed)
 
 
-    @timing_decorator
-    def run_in_line():
-        data = {
-            "model": "llama2:latest",
-            "prompt": "Как твои дела?",
-            "stream": False
-        }
-        response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
-        model_answer_1 = json.loads(response.text)["response"]
-        print(model_answer_1)
-
-        response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
-        model_answer_2 = json.loads(response.text)["response"]
-        print(model_answer_2)
-
-        response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
-        model_answer_3 = json.loads(response.text)["response"]
-        print(model_answer_3)
-
-        response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
-        model_answer_4 = json.loads(response.text)["response"]
-        print(model_answer_4)
-
-
-    run_in_line()
-
+    asyncio.run(a_main())

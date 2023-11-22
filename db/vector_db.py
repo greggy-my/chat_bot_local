@@ -5,7 +5,7 @@ from transformers import pipeline
 
 class VectorDB:
 
-    def __init__(self, path: str = "chroma_db"):
+    def __init__(self, path: str = "db/chroma_db"):
         self.client = chromadb.PersistentClient(path=path)
         self.current_collection = None
 
