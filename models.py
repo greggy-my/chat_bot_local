@@ -84,17 +84,24 @@ class Models:
                 print(all_models, end="\n")
 
     @staticmethod
-    def prompt_template(question: str, db_information: str, template_key: str) -> str:
+    def prompt_template(question: str, template_key: str, db_information: str = "", chat_memory: str = "") -> str:
         def def_value():
             return f"No template with key: {template_key}"
 
         template = defaultdict(def_value)
         template["chat"] = f"""
-                user prompt:"{question}" 
-                habr database information: "{db_information}"
-                Form your answer only in Russian
-                """
+        user prompt:"{question}" 
+        habr database information: "{db_information}"
+        instructions: "Form your answer only in Russian"
+        """
+        template["memo_chat"] = f"""
+        user prompt:"{question}" 
+        habr database information: "{db_information}"
+        instructions: "Form your answer only in Russian"
+        chat_memory: {chat_memory}
+        """
         template["classification"] = f"""{question}"""
+        print(template[template_key])
         return template[template_key]
 
     async def a_generate_response(self, model: str, prompt: str) -> tuple:
@@ -129,20 +136,9 @@ if __name__ == "__main__":
         await models.get_list_models()
 
         question = 'Напиши код используя визуальный пакет tkinter в Питоне'
-        db_information = 'Солнце светит ярко'
-        prompt = f"""
-        user prompt:"{question}" 
-        habr database information: "{db_information}"
-        Form your answer only in Russian
-        """
-        prompt_2 = f"""
-                user prompt:"{question}" 
-                habr database information: "{db_information}"
-                Form your answer only in Russian
-                """
 
-        model_answer, model_speed = await models.generate_response(model="llama_code",
-                                                                   prompt=prompt)
+        model_answer, model_speed = await models.a_generate_response(model="llama_code",
+                                                                   prompt=question)
         print(model_answer)
         print(model_speed)
 

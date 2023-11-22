@@ -7,10 +7,11 @@ from tkinter import ttk
 class ChatBotGUI:
     def __init__(self, master, process_function):
         self.master = master
-        self.master.title("Chat Bot GUI")
+        self.master.title("Chat Bot")
         self.is_processing = False
         self.execution_mode = "fast"  # Default execution mode
         self.process_function = process_function
+        self.processing_text_index = None
 
         # Make the interface adaptive to changes in size
         master.grid_rowconfigure(0, weight=1)
@@ -40,7 +41,7 @@ class ChatBotGUI:
         style = ttk.Style()
         style.configure('TButton', font=("Arial", 12))
 
-    def send_message(self, event=None):
+    def send_message(self, event=None) -> None:
         if not self.is_processing:
             # Set the flag to indicate that the bot is processing
             self.is_processing = True
@@ -53,34 +54,42 @@ class ChatBotGUI:
             message = self.user_input.get()
 
             self.chat_log.configure(state='normal')
-            self.chat_log.insert(tk.END, "You: " + message + "\n")
+            self.chat_log.insert(tk.END, "You: " + message + "\n\n")
             self.chat_log.configure(state='disabled')
 
-            # Show processing logo instead of processing text
-            self.processing_logo = PhotoImage(file='visual_interface/processing.gif')
-            self.processing_label = tk.Label(self.master, image=self.processing_logo, bg='white')
-            self.processing_label.grid(row=self.chat_log.grid_size()[1], column=0, columnspan=2)
+            # # Show processing logo instead of processing text
+            # self.processing_logo = PhotoImage(file='visual_interface/processing.gif')
+            # self.processing_label = tk.Label(self.master, image=self.processing_logo, bg="white")
+            # self.processing_label.grid(row=self.chat_log.grid_size()[1], column=0, columnspan=2)
+
+            # Display processing text
+            self.chat_log.configure(state='normal')
+            self.chat_log.insert(tk.END, "Bot is thinking...\n\n")
+            self.processing_text_index = self.chat_log.index(tk.END)
+            self.chat_log.configure(state='disabled')
 
             # Add animation for each message
-            self.master.after(1000, self.animate_message, self.chat_log.index(tk.END))
+            self.master.after(100, self.animate_message, self.chat_log.index(tk.END))
 
             # Process the message and get the reply from the function FOO
             self.master.after(0, self.process_message, message)
 
-    def process_message(self, message):
+    def process_message(self, message: str) -> None:
         # Simulate processing by using a placeholder function FOO
         reply = self.process_function(message, self.execution_mode)
 
-        # Hide processing logo after processing
-        self.processing_label.grid_remove()
+        # # Hide processing logo after processing
+        # self.processing_label.grid_remove()
 
         # For now, let's just echo the reply back
-        self.master.after(1000, self.echo_message, reply)
+        self.master.after(0, self.echo_message, reply)
 
-    def echo_message(self, message):
+    def echo_message(self, message: str) -> None:
         # Display bot's response
+        # Remove the processing text
         self.chat_log.configure(state='normal')
-        self.chat_log.insert(tk.END, "Bot: " + message + "\n")
+        # self.chat_log.delete(self.processing_text_index, tk.END + '+1l')
+        self.chat_log.insert(tk.END, "Bot: " + message + "\n\n", 'lightgreen')
         self.chat_log.configure(state='disabled')
 
         # Enable entry and button after processing
@@ -92,12 +101,12 @@ class ChatBotGUI:
         # Reset the flag after processing is complete
         self.is_processing = False
 
-    def animate_message(self, index):
+    def animate_message(self, index: str) -> None:
         self.chat_log.mark_set("start", index)
         self.chat_log.mark_gravity("start", "left")
         self.chat_log.see("start")
 
-    def toggle_execution_mode(self):
+    def toggle_execution_mode(self) -> None:
         # Toggle between "fast" and "better" execution modes
         if self.execution_mode == "fast":
             self.execution_mode = "better"
@@ -105,6 +114,3 @@ class ChatBotGUI:
         else:
             self.execution_mode = "fast"
             self.execution_mode_button.config(text="Execution Mode: Fast")
-
-
-

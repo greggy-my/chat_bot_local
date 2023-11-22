@@ -1,6 +1,4 @@
-import typing
 import chromadb
-from transformers import pipeline
 
 
 class VectorDB:
@@ -50,7 +48,7 @@ class VectorDB:
             ids=documents_ids
         )
 
-    def query_current_collection(self, query_embeddings: list[list], n_results: int = 3, metadata_filter: dict = None,
+    def query_current_collection(self, query_embeddings: list[list], n_results: int = 1, metadata_filter: dict = None,
                                  document_filter: dict = None) -> dict:
         if (metadata_filter and document_filter) is None:
             return self.current_collection.query(
