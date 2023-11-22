@@ -1,16 +1,10 @@
 from transformers import pipeline
-from langchain.llms import Ollama
-from langchain.callbacks.manager import CallbackManager, AsyncCallbackManagerForLLMRun
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-import requests
 import subprocess
-import json
 import httpx
 import json
 import asyncio
 import re
 import time
-import accelerate
 from collections import defaultdict
 import requests
 
@@ -60,6 +54,16 @@ def validate_response(response: requests.Response or httpx.Response) -> bool:
         print("Invalid response. Expected an instance of requests.Response.")
         return False
 
+
+def parse_model_response(response: str) -> str:
+    quotes_pattern = r'^[\'\"]+|[\'\"]+$'
+    prefix_pattern = r'^(AI[^:]*:|Human[^:]*:)'
+    result = re.sub(quotes_pattern, '', response)
+    result = re.sub(prefix_pattern, '', result)
+    result = result.strip()
+    return result
+
+
 class Models:
     def __init__(self):
         self.__initiate_connection()
@@ -84,22 +88,25 @@ class Models:
                 print(all_models, end="\n")
 
     @staticmethod
-    def prompt_template(question: str, template_key: str, chat_memory: str, db_information: str = "") -> str:
+    def prompt_template(template_key: str, question: str = "", chat_memory: str = "", db_information: str = "") -> str:
         def def_value():
             return f"No template with key: {template_key}"
 
         template = defaultdict(def_value)
         template["chat"] = f"""
         user prompt:"{question}" 
-        habr database information: "{db_information}"
-        instructions: "Form your answer only in Russian"
+        HABR database information: "{db_information}"
+        instructions: Craft your response in Russian. Craft your response without HABR database information if it is irrelevant.
         """
         template["memory_chat"] = f"""
-        user prompt:"{question}" 
-        habr database information: "{db_information}"
-        instructions: "Form your answer only in Russian"
+        instructions: Craft your responses in Russian. 
+        Do not duplicate messages from the ongoing conversation. 
+        Do not use AI and Human to start the generation. Give your response in plain text format, do not 
+        use quotation marks at the beginning and at the end of your response.
+        
         current conversation: {chat_memory}
         """
+
         template["classification"] = f"""{question}"""
         print(template[template_key])
         return template[template_key]
@@ -111,7 +118,7 @@ class Models:
                                          data=json_data, timeout=120)
             print(f"Generated HTTP response")
             if validate_response(response=response):
-                model_answer = json.loads(response.text)["response"].strip()
+                model_answer = parse_model_response(json.loads(response.text)["response"])
                 try:
                     model_generation_speed = round(float(json.loads(response.text)["eval_count"] \
                                                          / (json.loads(response.text)["eval_duration"] / 1e+9)), 2)
@@ -121,15 +128,15 @@ class Models:
                 return model_answer, model_generation_speed
 
     def generate_response(self, model: str, prompt: str) -> tuple:
-            json_data = json.dumps({"model": model, "prompt": prompt, "stream": False})
-            response = requests.post(url=self.local_host + self.models_urls["post"]["generate"],
-                                         data=json_data, timeout=120)
-            print(f"Generated HTTP response")
-            if validate_response(response=response):
-                model_answer = json.loads(response.text)["response"].strip()
-                model_generation_speed = round(float(json.loads(response.text)["eval_count"] \
-                                                     / (json.loads(response.text)["eval_duration"] / 1e+9)), 2)
-                return model_answer, model_generation_speed
+        json_data = json.dumps({"model": model, "prompt": prompt, "stream": False})
+        response = requests.post(url=self.local_host + self.models_urls["post"]["generate"],
+                                 data=json_data, timeout=120)
+        print(f"Generated HTTP response")
+        if validate_response(response=response):
+            model_answer = parse_model_response(json.loads(response.text)["response"])
+            model_generation_speed = round(float(json.loads(response.text)["eval_count"] \
+                                                 / (json.loads(response.text)["eval_duration"] / 1e+9)), 2)
+            return model_answer, model_generation_speed
 
 
 if __name__ == "__main__":
@@ -142,7 +149,7 @@ if __name__ == "__main__":
         question = 'Напиши код используя визуальный пакет tkinter в Питоне'
 
         model_answer, model_speed = await models.a_generate_response(model="llama_code",
-                                                                   prompt=question)
+                                                                     prompt=question)
         print(model_answer)
         print(model_speed)
 

@@ -3,7 +3,7 @@ SYSTEM """
 You should classify the user prompt to one of the groups:
 
 {
-"CODE": "User asks about his code or asks you to write some code.",
+"CODE": "User asks about his code or asks you to write or explain code.",
 "GENERAL": "The question is related to any topic in programming or computer science.",
 }
 

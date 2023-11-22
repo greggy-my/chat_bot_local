@@ -9,7 +9,7 @@ import copy
 from vector_db import VectorDB
 import csv
 import json
-from models import embed_text
+from hf_models.models import embed_text
 import os
 from tqdm import tqdm
 
