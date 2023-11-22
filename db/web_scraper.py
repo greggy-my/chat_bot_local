@@ -10,7 +10,8 @@ from vector_db import VectorDB
 import csv
 import json
 from models import embed_text
-from transformers import pipeline
+import os
+from tqdm import tqdm
 
 
 def get_html(url):
@@ -35,7 +36,7 @@ def scrape_with_playwright(urls):
 
     # Grab the first 1000 tokens of the site
     splitter = RecursiveCharacterTextSplitter.from_tiktoken_encoder(
-        chunk_size=1000, chunk_overlap=0
+        chunk_size=200, chunk_overlap=0
     )
     splits = splitter.split_documents(docs_transformed)
     return splits
@@ -68,41 +69,39 @@ def save_dict_to_csv(filename, my_dict):
 
 
 if __name__ == "__main__":
-    # Getting URLs from Habr
-    habr_article_urls = []
-    habr_search_urls = [f"https://habr.com/ru/hubs/programming/articles/top/alltime/easy/page{page_n}/" for
-                        page_n in range(1, 21)]
-    # Extract URLs of habr articles
-    for habr_search_url in habr_search_urls:
-        print(habr_search_url)
-        html_doc = get_html(habr_search_url)
+    if not os.path.exists('emergency_data_storage.json'):
+        # Getting URLs from Habr
+        habr_article_urls = []
+        habr_search_urls = [f"https://habr.com/ru/hubs/programming/articles/top/alltime/easy/page{page_n}/" for
+                            page_n in range(1, 21)]
+        # Extract URLs of habr articles
+        for habr_search_url in tqdm(habr_search_urls):
+            html_doc = get_html(habr_search_url)
 
-        if html_doc is not None:
-            soup = BeautifulSoup(html_doc, "html.parser")
-            print(soup)
+            if html_doc is not None:
+                soup = BeautifulSoup(html_doc, "html.parser")
 
-            article_url_pattern = r'^/ru/articles/\d+/$'
+                article_url_pattern = r'^/ru/articles/\d+/$'
 
-            for a_tags in soup.find_all("a"):
-                link = str(a_tags.get("href"))
-                print(link)
-                match_article_link = re.match(article_url_pattern, link)
-                if match_article_link:
-                    link = "https://habr.com" + link
-                    habr_article_urls.append(link)
+                for a_tags in soup.find_all("a"):
+                    link = str(a_tags.get("href"))
+                    match_article_link = re.match(article_url_pattern, link)
+                    if match_article_link:
+                        link = "https://habr.com" + link
+                        habr_article_urls.append(link)
 
-    # Extract content from the articles
-    extracted_content = scrape_with_playwright(habr_article_urls)
-    extracted_content_processed = preprocess_text_to_vector(extracted_content)
-    print(extracted_content_processed)
+        # Extract content from the articles
+        print(habr_article_urls)
+        extracted_content = scrape_with_playwright(habr_article_urls)
+        extracted_content_processed = preprocess_text_to_vector(extracted_content)
 
-    # Save the data to emergency csv file
-    filename = 'emergency_data_storage.json'
-    with open(filename, 'w') as json_file:
-        json.dump(extracted_content_processed, json_file)
-
-    with open('emergency_data_storage.json', 'r') as json_file:
-        extracted_content_processed = json.load(json_file)
+        # Save the data to emergency csv file
+        filename = 'emergency_data_storage.json'
+        with open(filename, 'w') as json_file:
+            json.dump(extracted_content_processed, json_file)
+    else:
+        with open('emergency_data_storage.json', 'r') as json_file:
+            extracted_content_processed = json.load(json_file)
 
     # Create embeddings
     embeddings = embed_text(extracted_content_processed["texts"])

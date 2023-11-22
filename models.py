@@ -10,6 +10,7 @@ import json
 import asyncio
 import re
 import time
+import accelerate
 
 
 def timing_decorator(func):
@@ -37,7 +38,9 @@ def async_timing_decorator(func):
 
 
 def embed_text(text: list[str]) -> list[list]:
-    embedding_function = pipeline("feature-extraction", model="ai-forever/sbert_large_nlu_ru")
+    embedding_function = pipeline(task="feature-extraction",
+                                  model="ai-forever/sbert_large_nlu_ru",
+                                  from_pt=True)
     embeddings = embedding_function(text)
     embeddings_parsed = [item[0][0] for item in embeddings]
     return embeddings_parsed
@@ -88,47 +91,53 @@ class Models:
                 return model_answer
 
 
-# @async_timing_decorator
-# async def a_main():
-#     models = Models()
-#
-#     # await models.get_list_models()
-#
-#     model_answer_1 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
-#     print(model_answer_1)
-#     model_answer_2 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
-#     print(model_answer_2)
-#     model_answer_3 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
-#     print(model_answer_3)
-#     model_answer_4 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
-#     print(model_answer_4)
-#
-# asyncio.run(a_main())
 
 
-@timing_decorator
-def run_in_line():
-    data = {
-        "model": "llama2:latest",
-        "prompt": "Как твои дела?",
-        "stream": False
-    }
-    response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
-    model_answer_1 = json.loads(response.text)["response"]
-    print(model_answer_1)
-
-    response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
-    model_answer_2 = json.loads(response.text)["response"]
-    print(model_answer_2)
-
-    response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
-    model_answer_3 = json.loads(response.text)["response"]
-    print(model_answer_3)
-
-    response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
-    model_answer_4 = json.loads(response.text)["response"]
-    print(model_answer_4)
 
 
-run_in_line()
+
+if __name__ == "__main__":
+    # @async_timing_decorator
+    # async def a_main():
+    #     models = Models()
+    #
+    #     # await models.get_list_models()
+    #
+    #     model_answer_1 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
+    #     print(model_answer_1)
+    #     model_answer_2 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
+    #     print(model_answer_2)
+    #     model_answer_3 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
+    #     print(model_answer_3)
+    #     model_answer_4 = await models.generate_response(model="llama2:latest", prompt="Как твои дела?")
+    #     print(model_answer_4)
+    #
+    # asyncio.run(a_main())
+
+
+    @timing_decorator
+    def run_in_line():
+        data = {
+            "model": "llama2:latest",
+            "prompt": "Как твои дела?",
+            "stream": False
+        }
+        response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
+        model_answer_1 = json.loads(response.text)["response"]
+        print(model_answer_1)
+
+        response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
+        model_answer_2 = json.loads(response.text)["response"]
+        print(model_answer_2)
+
+        response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
+        model_answer_3 = json.loads(response.text)["response"]
+        print(model_answer_3)
+
+        response = requests.post("http://localhost:11434/api/generate", data=json.dumps(data))
+        model_answer_4 = json.loads(response.text)["response"]
+        print(model_answer_4)
+
+
+    run_in_line()
 
