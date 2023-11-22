@@ -84,7 +84,7 @@ class Models:
                 print(all_models, end="\n")
 
     @staticmethod
-    def prompt_template(question: str, template_key: str, db_information: str = "", chat_memory: str = "") -> str:
+    def prompt_template(question: str, template_key: str, chat_memory: str, db_information: str = "") -> str:
         def def_value():
             return f"No template with key: {template_key}"
 
@@ -94,11 +94,11 @@ class Models:
         habr database information: "{db_information}"
         instructions: "Form your answer only in Russian"
         """
-        template["memo_chat"] = f"""
+        template["memory_chat"] = f"""
         user prompt:"{question}" 
         habr database information: "{db_information}"
         instructions: "Form your answer only in Russian"
-        chat_memory: {chat_memory}
+        current conversation: {chat_memory}
         """
         template["classification"] = f"""{question}"""
         print(template[template_key])
@@ -112,8 +112,12 @@ class Models:
             print(f"Generated HTTP response")
             if validate_response(response=response):
                 model_answer = json.loads(response.text)["response"].strip()
-                model_generation_speed = round(float(json.loads(response.text)["eval_count"] \
-                                                     / (json.loads(response.text)["eval_duration"] / 1e+9)), 2)
+                try:
+                    model_generation_speed = round(float(json.loads(response.text)["eval_count"] \
+                                                         / (json.loads(response.text)["eval_duration"] / 1e+9)), 2)
+                except KeyError:
+                    print("Model didn't send the speed back")
+                    model_generation_speed = None
                 return model_answer, model_generation_speed
 
     def generate_response(self, model: str, prompt: str) -> tuple:

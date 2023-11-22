@@ -5,10 +5,12 @@ from visual_interface.visual_interface import ChatBotGUI
 
 if __name__ == "__main__":
 
-    memory = []
-    buffer_memory_counter = 5
+    chat_memory = []
+    BUFFER_MEMORY_COUNTER = 5
 
-    def message_processing_pipeline(user_message: str, execution_mode: str) -> str:
+    def message_processing_pipeline(user_message: str, execution_mode: str, memory_mode: str) -> str:
+        print(f"Memory mode from visual interface: {memory_mode}")
+        memory_string = ""
         embeddings = embed_text([user_message])
         db_documents = db.query_current_collection(query_embeddings=embeddings)
         db_information = str(db_documents["documents"][0])
@@ -17,7 +19,8 @@ if __name__ == "__main__":
                                                                    prompt=models.prompt_template(
                                                                        db_information=db_information,
                                                                        question=user_message,
-                                                                       template_key="classification"))
+                                                                       template_key="classification",
+                                                                       chat_memory=memory_string))
         print(f"Classification model speed: {model_speed} tokens per second")
 
         if class_model_answer.lower() == "code":
@@ -31,26 +34,32 @@ if __name__ == "__main__":
             else:
                 model = "llama_ru_lite"
 
+        print(f"Chosen model: {model}")
+
+        if (memory_mode == 'memory_chat') and (len(chat_memory) < BUFFER_MEMORY_COUNTER):
+            template_key = 'memory_chat'
+            memory_string = '\n'.join(chat_memory) + f"\nHuman: {user_message}\nAI:"
+        else:
+            template_key = "chat"
+            chat_memory.clear()
+
+        print(f'Template key: {template_key}')
+        print(f'\nMemory:\n{memory_string}')
+
         chat_model_answer, model_speed = models.generate_response(model=model,
                                                                   prompt=models.prompt_template(
                                                                       db_information=db_information,
                                                                       question=user_message,
-                                                                      template_key="chat"))
+                                                                      template_key=template_key,
+                                                                      chat_memory=memory_string))
+
         print(f"{model} model speed: {model_speed} tokens per second")
 
+        if memory_mode == 'memory_chat':
+            message_pair = f"\nHuman: {user_message}\nAI: {chat_model_answer}\n"
+            chat_memory.append(message_pair)
+
         return chat_model_answer
-
-    def buffer_memory(user_input: str, bot_reply: str):
-        message_pair = f"HUMAN: {user_input}\nAI: {bot_reply}"
-        if len(memory) > buffer_memory_counter:
-            memory.clear()
-            return message_pair
-        memory.append(message_pair)
-        memory_string = '\n\n'.join(memory)
-        return memory_string
-
-
-
 
 
     db = VectorDB()
