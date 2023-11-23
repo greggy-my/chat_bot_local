@@ -9,7 +9,7 @@ class ChatBotGUI:
         self.master.title("Chat Bot")
         self.is_processing = False
         self.execution_mode = "fast"  # Default execution mode
-        self.memory_mode = "chat"  # Default memory mode
+        self.memory_mode = "memory_chat"  # Default memory mode
         self.process_function = process_function
         self.processing_text_index = None
 
@@ -18,13 +18,13 @@ class ChatBotGUI:
         master.grid_columnconfigure(0, weight=1)
 
         # Create a scrolled text widget to display messages
-        self.chat_log = scrolledtext.ScrolledText(self.master, state='disabled')
-        self.chat_log.configure(font=("Arial", 16), bg='white', fg='black')
-        self.chat_log.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky='nsew')
+        self.chat_log = scrolledtext.ScrolledText(self.master, state="disabled")
+        self.chat_log.configure(font=("Arial", 16), bg="white", fg="black")
+        self.chat_log.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
 
         # Create an entry widget for user input
         self.user_input = tk.Entry(self.master)
-        self.user_input.grid(row=1, column=0, padx=5, pady=5, sticky='ew')
+        self.user_input.grid(row=1, column=0, padx=5, pady=5, sticky="ew")
 
         # Bind the Enter key to the send_message function
         self.user_input.bind("<Return>", self.send_message)
@@ -37,89 +37,97 @@ class ChatBotGUI:
         self.execution_mode_button = ttk.Button(self.master,
                                                 text="Execution Mode: Fast",
                                                 command=self.toggle_execution_mode,
-                                                style='TButton')
-        self.execution_mode_button.grid(row=2, column=0, pady=10, sticky='w', padx=5)
-        # self.execution_mode_button.grid(row=2, column=0, columnspan=2, pady=2)
+                                                style="TButton")
+        self.execution_mode_button.grid(row=2, column=0, pady=10, sticky="w", padx=5)
 
         # Create a themed button to choose execution mode
         self.memory_mode_button = ttk.Button(self.master,
-                                             text="Memory Mode: Chat",
+                                             text="Memory Mode: Memory Chat",
                                              command=self.toggle_memory_mode,
-                                             style='TButton')
-        self.memory_mode_button.grid(row=2, column=0, pady=10, sticky='e', padx=5)
-        # self.memory_mode_button.grid(row=2, column=0, columnspan=2, pady=2)
+                                             style="TButton")
+        self.memory_mode_button.grid(row=2, column=0, pady=10, sticky="e", padx=5)
 
         # Create a style for the themed button
         style = ttk.Style()
-        style.configure('TButton',
+        style.configure("TButton",
                         font=("Arial", 16),
-                        foreground='white',
-                        background='#4CAF50',
+                        foreground="white",
+                        background="#4CAF50",
                         padding=0,
                         borderwidth=0,
                         highlightthickness=0,
                         shiftrelief=-20)
-        style.map('TButton', foreground=[('active', '!disabled', 'white')], background=[('active', '#45a049')])
+        style.map("TButton", foreground=[("active", "!disabled", "white")], background=[("active", "#45a049")])
 
     def send_message(self, event=None) -> None:
+        """Send a message from user using SEND button"""
         if not self.is_processing:
-            # Set the flag to indicate that the bot is processing
-            self.is_processing = True
+            message = self.user_input.get().strip()
 
-            # Disable entry and button during processing
-            self.user_input.config(state='disabled')
-            self.send_button.config(state='disabled')
-            self.execution_mode_button.state(['disabled'])
-            self.memory_mode_button.state(['disabled'])
+            # Check if the message is not empty
+            if message:
+                # Set the flag to indicate that the bot is processing
+                self.is_processing = True
 
-            message = self.user_input.get()
+                # Disable entry and button during processing
+                self.user_input.config(state="disabled")
+                self.send_button.config(state="disabled")
+                self.execution_mode_button.state(["disabled"])
+                self.memory_mode_button.state(["disabled"])
 
-            self.chat_log.configure(state='normal')
-            self.chat_log.insert(tk.END, "You: " + message + "\n\n")
-            self.chat_log.configure(state='disabled')
+                message = self.user_input.get()
 
-            # Display processing text
-            self.chat_log.configure(state='normal')
-            self.chat_log.insert(tk.END, "Bot is thinking...\n\n")
-            self.processing_text_index = self.chat_log.index(tk.END)
-            self.chat_log.configure(state='disabled')
+                self.chat_log.configure(state="normal")
+                self.chat_log.insert(tk.END, "You: " + message + "\n\n")
+                self.chat_log.configure(state="disabled")
 
-            # Add animation for each message
-            self.master.after(0, self.animate_message, self.chat_log.index(tk.END))
+                # Display processing text
+                self.chat_log.configure(state="normal")
+                self.chat_log.insert(tk.END, "Bot is thinking...\n\n")
+                self.processing_text_index = self.chat_log.index(tk.END)
+                self.chat_log.configure(state="disabled")
 
-            # Process the message and get the reply from the function FOO
-            self.master.after(0, self.process_message, message)
+                # Add animation for each message
+                self.master.after(0, self.animate_message, self.chat_log.index(tk.END))
+
+                # Process the message and get the reply from the function FOO
+                self.master.after(0, self.process_message, message)
 
     def process_message(self, message: str) -> None:
+        """Send the message to processing pipeline and getting the final answer"""
         reply = self.process_function(message, self.execution_mode, self.memory_mode)
         self.master.after(0, self.echo_message, reply)
 
     def echo_message(self, message: str) -> None:
-        self.chat_log.configure(state='normal')
+        """Send Chat-Bot message to chat window"""
+        self.chat_log.configure(state="normal")
         self.chat_log.insert(tk.END, "Bot: " + message + "\n\n")
-        self.chat_log.configure(state='disabled')
+        self.chat_log.configure(state="disabled")
 
         # Enable entry and button after processing
-        self.user_input.config(state='normal')
-        self.send_button.config(state='normal')
-        self.execution_mode_button.state(['!disabled'])
-        self.memory_mode_button.state(['!disabled'])
-        self.user_input.delete(0, 'end')
+        self.user_input.config(state="normal")
+        self.send_button.config(state="normal")
+        self.execution_mode_button.state(["!disabled"])
+        self.memory_mode_button.state(["!disabled"])
+        self.user_input.delete(0, "end")
 
         # Reset the flag after processing is complete
         self.is_processing = False
 
     def animate_message(self, index: str) -> None:
+        """Animate message appearance in chat"""
         self.chat_log.mark_set("start", index)
         self.chat_log.mark_gravity("start", "left")
         self.chat_log.see("start")
 
     def clear_chat_log(self):
-        self.chat_log.configure(state='normal')
+        """Clear chat"""
+        self.chat_log.configure(state="normal")
         self.chat_log.delete(1.0, tk.END)
-        self.chat_log.configure(state='disabled')
+        self.chat_log.configure(state="disabled")
 
     def toggle_execution_mode(self) -> None:
+        """Change the execution mode in click of the execution button"""
         # Toggle between "fast" and "better" execution modes
         if self.execution_mode == "fast":
             self.execution_mode = "better"
@@ -129,6 +137,7 @@ class ChatBotGUI:
             self.execution_mode_button.config(text="Execution Mode: Fast")
 
     def toggle_memory_mode(self) -> None:
+        """Change the memory mode in click of the memory button"""
         # Toggle between "fast" and "better" execution modes
         if self.memory_mode == "chat":
             self.memory_mode = "memory_chat"

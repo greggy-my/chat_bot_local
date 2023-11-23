@@ -34,6 +34,7 @@ def async_timing_decorator(func):
 
 
 def embed_text(text: list[str]) -> list[list]:
+    """Vectorise text using embedding function"""
     embedding_function = pipeline(task="feature-extraction",
                                   model="ai-forever/sbert_large_nlu_ru",
                                   from_pt=True)
@@ -43,6 +44,7 @@ def embed_text(text: list[str]) -> list[list]:
 
 
 def validate_response(response: requests.Response or httpx.Response) -> bool:
+    """Validate HTTP response"""
     if isinstance(response, httpx.Response) or isinstance(response, requests.Response):
         if response.status_code == 200:
             print("HTTP response is valid.\n")
@@ -56,9 +58,11 @@ def validate_response(response: requests.Response or httpx.Response) -> bool:
 
 
 def parse_model_response(response: str) -> str:
+    """Parse model response, replace unrelated symbols"""
+    result = response.strip()
     quotes_pattern = r'^[\'\"]+|[\'\"]+$'
     prefix_pattern = r'^(AI[^:]*:|Human[^:]*:)'
-    result = re.sub(quotes_pattern, '', response)
+    result = re.sub(quotes_pattern, '', result)
     result = re.sub(prefix_pattern, '', result)
     result = result.strip()
     return result
@@ -73,6 +77,7 @@ class Models:
 
     @staticmethod
     def __initiate_connection() -> None:
+        """Initiate connection with Ollama"""
         bash_command = "ollama serve"
         try:
             subprocess.run(bash_command, shell=True, check=True)
@@ -81,6 +86,7 @@ class Models:
             print(f"Error during ollama initialisation: {e}\n")
 
     async def get_list_models(self) -> None:
+        """Get list of available models"""
         async with httpx.AsyncClient() as client:
             response = await client.get(url=self.local_host + self.models_urls["get"]["list"])
             if validate_response(response=response):
@@ -89,6 +95,8 @@ class Models:
 
     @staticmethod
     def prompt_template(template_key: str, question: str = "", chat_memory: str = "", db_information: str = "") -> str:
+        """Get prompt template depending on the type of the question"""
+
         def def_value():
             return f"No template with key: {template_key}"
 
@@ -101,17 +109,16 @@ class Models:
         template["memory_chat"] = f"""
         instructions: Craft your responses in Russian. 
         Do not duplicate messages from the ongoing conversation. 
-        Do not use AI and Human to start the generation. Give your response in plain text format, do not 
-        use quotation marks at the beginning and at the end of your response.
+        Do not use AI and Human to start the generation. Give your response in plain text format.
         
         current conversation: {chat_memory}
         """
 
         template["classification"] = f"""{question}"""
-        print(template[template_key])
         return template[template_key]
 
     async def a_generate_response(self, model: str, prompt: str) -> tuple:
+        """Generate asynchronous response to a model and get a reply and speed of text generation"""
         async with httpx.AsyncClient() as client:
             json_data = json.dumps({"model": model, "prompt": prompt, "stream": False})
             response = await client.post(url=self.local_host + self.models_urls["post"]["generate"],
@@ -128,10 +135,11 @@ class Models:
                 return model_answer, model_generation_speed
 
     def generate_response(self, model: str, prompt: str) -> tuple:
+        """Generate synchronous response to a model and get a reply and speed of text generation"""
         json_data = json.dumps({"model": model, "prompt": prompt, "stream": False})
         response = requests.post(url=self.local_host + self.models_urls["post"]["generate"],
                                  data=json_data, timeout=120)
-        print(f"Generated HTTP response")
+        print(f"Sent HTTP response to generate text to {model}")
         if validate_response(response=response):
             model_answer = parse_model_response(json.loads(response.text)["response"])
             model_generation_speed = round(float(json.loads(response.text)["eval_count"] \
@@ -140,18 +148,4 @@ class Models:
 
 
 if __name__ == "__main__":
-    @async_timing_decorator
-    async def a_main():
-        models = Models()
-
-        await models.get_list_models()
-
-        question = 'Напиши код используя визуальный пакет tkinter в Питоне'
-
-        model_answer, model_speed = await models.a_generate_response(model="llama_code",
-                                                                     prompt=question)
-        print(model_answer)
-        print(model_speed)
-
-
-    asyncio.run(a_main())
+    pass
