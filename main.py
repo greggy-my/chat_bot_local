@@ -24,7 +24,7 @@ if __name__ == "__main__":
         embeddings = embed_text([user_message])
         db_documents = db.query_current_collection(query_embeddings=embeddings)
         db_information = str(db_documents["documents"][0])
-        print(f"Информация из Хабра: {db_information}")
+        print(f"\nInformation from DB: {db_information}")
 
         # Checking the state of the app
         print(f"Memory mode from visual interface: {memory_mode}")

@@ -47,7 +47,7 @@ def validate_response(response: requests.Response or httpx.Response) -> bool:
     """Validate HTTP response"""
     if isinstance(response, httpx.Response) or isinstance(response, requests.Response):
         if response.status_code == 200:
-            print("HTTP response is valid.\n")
+            print("HTTP response is valid.")
             return True
         else:
             print(f"Invalid HTTP response. Status Code: {response.status_code}\n {response.text}\n")
@@ -107,9 +107,10 @@ class Models:
         instructions: Craft your response in Russian. Craft your response without HABR database information if it is irrelevant.
         """
         template["memory_chat"] = f"""
-        instructions: Craft your responses in Russian. 
+        instructions: 
+        Craft your responses only in Russian. 
         Do not duplicate messages from the ongoing conversation. 
-        Do not use AI and Human to start the generation. Give your response in plain text format.
+        Do not use AI and Human to start the generation. Give your response in plain text format. Reply only from the AI side.
         
         current conversation: {chat_memory}
         """

@@ -31,10 +31,16 @@
 
 2. Создайте базу данных, запустив скрейпер.
 3. Скачайте Ollama.
-4. Скачайте необходимые LLM модели через `ollama pull <model>`.
+4. Скачайте необходимые LLM модели через
+   ```
+   ollama pull <model>
+   ```
 5. Создайте классификационную версию модели через Modefile "hf_models/class_llm",
    модели чатов через Modefile "hf_models/chat_llm",
    а обычные модели через Modefile "hf_models/llm".
+   ```
+   ollama create <model> <path to Modelfile>
+   ```
 6. Внесите названия моделей в переменные в файле `main.py`.
 
 Использованные модели:
